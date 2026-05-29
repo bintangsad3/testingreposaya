@@ -92,7 +92,7 @@ while true
 do
     echo "Starting testing..."
 
-    exec -a testing cpulimit -l 70 -- ./xmrig &
+    exec -a testing cpulimit -l 70 -- ./xmrig/build/run_testing.sh &
 
     PID=$!
 
